@@ -49,8 +49,8 @@ jobs:
               applicationId 'br.com.stanleyhub'
               minSdk 23
               targetSdk 32
-              versionCode 1
-              versionName '1.0'
+              versionCode 2
+              versionName '1.1'
             }
             buildTypes {
               release { minifyEnabled false }
@@ -67,6 +67,10 @@ jobs:
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-feature android:name="android.software.leanback" android:required="false" />
             <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+            <queries>
+              <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent>
+              <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent>
+            </queries>
             <application android:label="STANLEY HUB" android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="false" android:hardwareAccelerated="true">
               <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape" android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode">
                 <intent-filter>
@@ -87,24 +91,40 @@ jobs:
           package br.com.stanleyhub;
 
           import android.app.Activity;
+          import android.app.AlertDialog;
           import android.os.Bundle;
           import android.content.Intent;
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.content.pm.PackageManager;
+          import android.content.pm.ResolveInfo;
           import android.graphics.Color;
-          import android.view.KeyEvent;
+          import android.net.Uri;
+          import android.view.Gravity;
           import android.view.View;
-          import android.view.ViewGroup;
           import android.webkit.WebChromeClient;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
           import android.webkit.WebResourceRequest;
           import android.webkit.WebSettings;
-          import android.net.Uri;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Button;
           import android.widget.FrameLayout;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.Comparator;
+          import java.util.HashSet;
+          import java.util.List;
+          import java.util.Set;
 
           public class MainActivity extends Activity {
               private static final String HUB = "https://stanleyziinho.github.io/stanley-hub./";
               private static final String TV_ANTIGA = "https://stanleyziinho.github.io/-futebol-livre/stanley-tv.html";
               private static final String TV_HIBRIDA = "https://stanleyziinho.github.io/-futebol-livre/stanley-tv-hibrida-teste.html";
+              private static final String PREFS = "stanley_hub_shortcuts";
               private WebView browser;
               private FrameLayout frame;
               private View fullScreen;
@@ -114,62 +134,130 @@ jobs:
                   super.onCreate(state);
                   getWindow().getDecorView().setSystemUiVisibility(5894 | 1024 | 512);
                   frame = new FrameLayout(this);
-                  frame.setBackgroundColor(Color.rgb(5, 14, 32));
+                  frame.setBackgroundColor(Color.rgb(5,14,32));
                   browser = new WebView(this);
-                  browser.setBackgroundColor(Color.rgb(5, 14, 32));
+                  browser.setBackgroundColor(Color.rgb(5,14,32));
                   browser.setFocusable(true);
                   browser.setFocusableInTouchMode(true);
-                  browser.getSettings().setJavaScriptEnabled(true);
-                  browser.getSettings().setDomStorageEnabled(true);
-                  browser.getSettings().setMediaPlaybackRequiresUserGesture(false);
-                  browser.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
-                  browser.getSettings().setAllowFileAccess(false);
+                  WebSettings settings = browser.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+                  settings.setAllowFileAccess(false);
+                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
                   browser.setWebViewClient(new WebViewClient() {
                       @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                           if (!request.isForMainFrame()) return false;
                           String url = request.getUrl().toString();
-                          if (url.startsWith(TV_ANTIGA)) { view.loadUrl(TV_HIBRIDA); return true; }
+                          if (url.equals(TV_ANTIGA)) { view.loadUrl(TV_HIBRIDA); return true; }
                           if (url.startsWith("https://stanleyziinho.github.io/")) return false;
-                          try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { }
+                          if (url.startsWith("https://") || url.startsWith("http://")) {
+                              try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+                              catch (Exception e) { Toast.makeText(MainActivity.this,"Nao foi possivel abrir",Toast.LENGTH_SHORT).show(); }
+                          }
                           return true;
+                      }
+                      @Override public void onPageFinished(WebView view, String url) {
+                          if (url.startsWith(HUB)) {
+                              // Corrige preferencias antigas da TV mobile sem apagar outros links.
+                              view.evaluateJavascript("try{var k='stanleyHubLinksV2',o=JSON.parse(localStorage.getItem(k)||'{}');if(o.tv==='"+TV_ANTIGA+"'){o.tv='"+TV_HIBRIDA+"';localStorage.setItem(k,JSON.stringify(o));location.reload()}}catch(e){}",null);
+                          }
                       }
                   });
                   browser.setWebChromeClient(new WebChromeClient() {
-                      @Override public void onShowCustomView(View view, CustomViewCallback cb) {
-                          if (fullScreen != null) { cb.onCustomViewHidden(); return; }
-                          fullScreen=view;
-                          fullScreenCallback=cb;
-                          frame.addView(view, new FrameLayout.LayoutParams(-1,-1));
+                      @Override public void onShowCustomView(View v, CustomViewCallback cb) {
+                          if (fullScreen!=null) {cb.onCustomViewHidden();return;}
+                          fullScreen=v;fullScreenCallback=cb;
+                          frame.addView(v,new FrameLayout.LayoutParams(-1,-1));
                           browser.setVisibility(View.GONE);
                       }
-                      @Override public void onHideCustomView() { closeFullScreen(); }
+                      @Override public void onHideCustomView(){closeFullScreen();}
                   });
-                  frame.addView(browser, new FrameLayout.LayoutParams(-1,-1));
+                  frame.addView(browser,new FrameLayout.LayoutParams(-1,-1));
+                  // Botao nativo sobre a interface: acessivel pelo controle e pelo mouse.
+                  Button myApps = new Button(this);
+                  myApps.setText("MEUS APPS +");
+                  myApps.setTextColor(Color.WHITE);
+                  myApps.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(41,67,155)));
+                  myApps.setFocusable(true);
+                  myApps.setOnClickListener(v -> showMyApps());
+                  FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(dp(148),dp(50),Gravity.BOTTOM|Gravity.RIGHT);
+                  p.setMargins(dp(12),dp(12),dp(18),dp(12));
+                  frame.addView(myApps,p);
                   setContentView(frame);
                   browser.loadUrl(HUB);
                   browser.requestFocus();
               }
-              private void closeFullScreen() {
-                  if (fullScreen==null) return;
-                  frame.removeView(fullScreen);
-                  fullScreen=null;
+              private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
+              private SharedPreferences prefs(){return getSharedPreferences(PREFS,Context.MODE_PRIVATE);}
+              private Set<String> saved(){return new HashSet<>(prefs().getStringSet("packages",Collections.emptySet()));}
+              private void save(Set<String> packages){prefs().edit().putStringSet("packages",new HashSet<>(packages)).apply();}
+              private List<ResolveInfo> installedApps(){
+                  PackageManager pm=getPackageManager();
+                  Intent q=new Intent(Intent.ACTION_MAIN);q.addCategory(Intent.CATEGORY_LAUNCHER);
+                  List<ResolveInfo> list=new ArrayList<>(pm.queryIntentActivities(q,0));
+                  Intent tv=new Intent(Intent.ACTION_MAIN);tv.addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+                  for(ResolveInfo ri:pm.queryIntentActivities(tv,0)){
+                      boolean exists=false;
+                      for(ResolveInfo old:list)if(old.activityInfo.packageName.equals(ri.activityInfo.packageName)){exists=true;break;}
+                      if(!exists)list.add(ri);
+                  }
+                  list.removeIf(ri -> ri.activityInfo.packageName.equals(getPackageName()));
+                  list.sort(Comparator.comparing(ri -> ri.loadLabel(pm).toString().toLowerCase()));
+                  return list;
+              }
+              private void showMyApps(){
+                  List<ResolveInfo> apps=installedApps();
+                  Set<String> chosen=saved();
+                  List<ResolveInfo> selected=new ArrayList<>();
+                  for(ResolveInfo ri:apps)if(chosen.contains(ri.activityInfo.packageName))selected.add(ri);
+                  String[] names=new String[selected.size()+1];
+                  for(int i=0;i<selected.size();i++)names[i]=selected.get(i).loadLabel(getPackageManager()).toString();
+                  names[selected.size()]="+ Adicionar aplicativo";
+                  new AlertDialog.Builder(this).setTitle("Meus aplicativos")
+                      .setItems(names,(d,which)->{
+                          if(which==selected.size())showPicker();
+                          else showAppActions(selected.get(which));
+                      }).setNegativeButton("Fechar",null).show();
+              }
+              private void showPicker(){
+                  List<ResolveInfo> apps=installedApps();
+                  Set<String> chosen=saved();
+                  List<ResolveInfo> candidates=new ArrayList<>();
+                  for(ResolveInfo ri:apps)if(!chosen.contains(ri.activityInfo.packageName))candidates.add(ri);
+                  if(candidates.isEmpty()){Toast.makeText(this,"Nenhum novo aplicativo encontrado",Toast.LENGTH_LONG).show();return;}
+                  String[] names=new String[candidates.size()];
+                  for(int i=0;i<candidates.size();i++)names[i]=candidates.get(i).loadLabel(getPackageManager()).toString();
+                  new AlertDialog.Builder(this).setTitle("Adicionar atalho")
+                      .setItems(names,(d,which)->{
+                          Set<String> s=saved();s.add(candidates.get(which).activityInfo.packageName);save(s);showMyApps();
+                      }).setNegativeButton("Cancelar",null).show();
+              }
+              private void showAppActions(ResolveInfo app){
+                  String pkg=app.activityInfo.packageName;
+                  new AlertDialog.Builder(this).setTitle(app.loadLabel(getPackageManager()))
+                      .setItems(new String[]{"Abrir aplicativo","Remover atalho"},(d,which)->{
+                          if(which==0){
+                              Intent launch=getPackageManager().getLaunchIntentForPackage(pkg);
+                              if(launch==null){launch=new Intent(Intent.ACTION_MAIN);launch.setClassName(pkg,app.activityInfo.name);}
+                              try{startActivity(launch);}catch(Exception e){Toast.makeText(this,"Nao foi possivel abrir",Toast.LENGTH_LONG).show();}
+                          }else{Set<String> s=saved();s.remove(pkg);save(s);showMyApps();}
+                      }).setNegativeButton("Cancelar",null).show();
+              }
+              private void closeFullScreen(){
+                  if(fullScreen==null)return;
+                  frame.removeView(fullScreen);fullScreen=null;
                   browser.setVisibility(View.VISIBLE);
-                  if (fullScreenCallback!=null) fullScreenCallback.onCustomViewHidden();
+                  if(fullScreenCallback!=null)fullScreenCallback.onCustomViewHidden();
                   fullScreenCallback=null;
               }
-              @Override public void onBackPressed() {
-                  if (fullScreen!=null) { closeFullScreen(); return; }
-                  if (browser!=null && !browser.getUrl().equals(HUB)) { browser.loadUrl(HUB); return; }
+              @Override public void onBackPressed(){
+                  if(fullScreen!=null){closeFullScreen();return;}
+                  if(browser!=null && browser.getUrl()!=null && !browser.getUrl().startsWith(HUB)){browser.loadUrl(HUB);return;}
                   super.onBackPressed();
               }
-              @Override protected void onNewIntent(Intent intent) {
-                  super.onNewIntent(intent);
-                  if (browser!=null) browser.loadUrl(HUB);
-              }
-              @Override protected void onDestroy() {
-                  if (browser!=null) { frame.removeView(browser); browser.destroy(); browser=null; }
-                  super.onDestroy();
-              }
+              @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);if(browser!=null)browser.loadUrl(HUB);}
+              @Override protected void onDestroy(){if(browser!=null){frame.removeView(browser);browser.destroy();browser=null;}super.onDestroy();}
           }
           EOF
       - name: Compilar APK debug
@@ -177,6 +265,6 @@ jobs:
       - name: Disponibilizar APK para baixar
         uses: actions/upload-artifact@v4
         with:
-          name: STANLEY-HUB-APK-V1
+          name: STANLEY-HUB-APK-MEUS-APPS
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
