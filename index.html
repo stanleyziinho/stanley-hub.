@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#061331">
-<title>STANLEY HUB V3.3</title>
+<title>STANLEY HUB V3.4</title>
 <style>
 :root{--bg:#061331;--fg:#fff;--muted:#b9c6e4;--neon:#87c4ff}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;color:var(--fg);background:var(--bg)}
@@ -33,7 +33,7 @@ footer{display:flex;justify-content:space-between;gap:12px;color:#bac5dc;font-si
 
 .shell{height:100vh;min-height:0;display:flex;flex-direction:column;padding:clamp(10px,2vw,28px)}header{margin:0 0 18px;flex-shrink:0}.mark{width:48px;height:48px;flex-basis:48px;font-size:28px;border-radius:14px}main{flex:1;min-height:0;display:flex;align-items:center}.main-grid{width:100%;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1.4vw,20px);margin:0}.hero{height:clamp(100px,48vh,340px);border-radius:18px}.hero img{object-fit:contain;background:#0a1835}.gear{background:#203a70;padding:7px 12px;font-size:22px;border-radius:12px}.music{background:radial-gradient(ellipse at top,#167d83,#103253 55%,#081a32);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8px}.music-art{font-size:clamp(40px,12vh,100px);color:#70ffcf;text-shadow:0 0 22px #16dca5}.music strong{font-size:clamp(13px,2vw,27px)}.music small{font-size:clamp(10px,1.2vw,16px);margin-top:8px;color:#c8eee8}footer{margin-top:12px;flex-shrink:0}@media(max-width:680px) and (orientation:portrait){.shell{height:auto;min-height:100vh}.main-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{height:150px}main{display:block}.status{gap:5px}.gear{padding:4px 8px}.subtitle{letter-spacing:0}}
 
-/* V3.3: dark ambient wallpaper and edge-to-edge artwork */
+/* V3.4: dark ambient wallpaper and edge-to-edge artwork */
 body{background:#090b12;background-image:radial-gradient(ellipse at 14% 18%,#53213d66,transparent 43%),radial-gradient(ellipse at 85% 75%,#145c5666,transparent 48%),linear-gradient(125deg,#080910,#17141f 52%,#080f14)}
 body:before{background:repeating-linear-gradient(125deg,transparent 0,transparent 85px,#ffffff06 86px,transparent 88px),linear-gradient(125deg,transparent 22%,#b84e7a22 23%,transparent 29%,transparent 70%,#35cbb622 72%,transparent 78%)}
 .shell{padding:clamp(16px,2.6vw,36px)}
@@ -43,6 +43,9 @@ body:before{background:repeating-linear-gradient(125deg,transparent 0,transparen
 .tile:focus-visible,.tile.focused{transform:translateY(-7px) scale(1.035);border-color:#fff;box-shadow:0 0 0 2px #80d9ff,0 0 22px #60c5ff77,0 12px 25px #0009}
 @media(max-width:680px) and (orientation:portrait){.hero{height:auto;max-height:none;aspect-ratio:1.29}.main-grid{gap:12px}}
 </style>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stanley HUB">
 </head>
 <body>
 <div class="shell">
@@ -59,7 +62,7 @@ body:before{background:repeating-linear-gradient(125deg,transparent 0,transparen
   </section>
 
 </main>
-<footer><span>SETAS: Navegar &#183; OK: Abrir &#183; VOLTAR: Fechar janela</span><span>STANLEY HUB V3.3</span></footer>
+<footer><span>SETAS: Navegar &#183; OK: Abrir &#183; VOLTAR: Fechar janela</span><span>STANLEY HUB V3.4</span></footer>
 </div>
 <div class="dialog-back" id="backdrop" aria-hidden="true"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><h2 id="dialogTitle"></h2><div id="dialogContent"></div><div class="actions"><button class="action" id="closeBtn">Fechar</button><button class="action primary" id="saveBtn" hidden>Salvar</button></div></div></div>
 <script>
@@ -67,6 +70,7 @@ body:before{background:repeating-linear-gradient(125deg,transparent 0,transparen
 var defaults={sports:'https://stanleyziinho.github.io/-futebol-livre/',tv:'https://stanleyziinho.github.io/-futebol-livre/stanley-tv-hibrida-teste.html',retro:'https://stanleyziinho.github.io/stanley-play/retro-home-v6-teste.html'};
 var urls={};try{urls=JSON.parse(localStorage.getItem('stanleyHubLinksV2')||'{}')||{}}catch(e){}
 if(urls.tv==='https://stanleyziinho.github.io/-futebol-livre/stanley-tv.html'){urls.tv=defaults.tv;try{localStorage.setItem('stanleyHubLinksV2',JSON.stringify(urls));}catch(e){}}
+if(urls.retro==='https://stanleyziinho.github.io/stanley-play/retro.html'){delete urls.retro;try{localStorage.setItem('stanleyHubLinksV2',JSON.stringify(urls))}catch(e){}}
 var cards=Array.prototype.slice.call(document.querySelectorAll('.tile'));
 var backdrop=document.getElementById('backdrop'),dialogContent=document.getElementById('dialogContent'),title=document.getElementById('dialogTitle'),saveBtn=document.getElementById('saveBtn');
 var lastCard=null;
@@ -76,8 +80,8 @@ function focusCard(el){if(!el)return;cards.forEach(function(x){x.classList.remov
 function showDialog(heading,markup,save){lastCard=document.activeElement;title.textContent=heading;dialogContent.innerHTML=markup;saveBtn.hidden=!save;backdrop.classList.add('open');backdrop.setAttribute('aria-hidden','false');document.getElementById('closeBtn').focus()}
 function closeDialog(){backdrop.classList.remove('open');backdrop.setAttribute('aria-hidden','true');if(lastCard&&lastCard.focus)lastCard.focus()}
 function launch(k){var url=urls[k]||defaults[k];if(!/^https:\/\//i.test(url)){showDialog('Link inv\u00E1lido','<p>Configure um endere\u00E7o HTTPS v\u00E1lido em Configura\u00E7\u00F5es.</p>',false);return}window.location.href=url}
-function act(k){if(k==='music'){window.location.href='stanley-music.html';return}if(k==='sports'||k==='tv'||k==='retro'){launch(k);return}
-if(k==='settings'){var keys=['sports','tv','retro'],labels=['Stanley Sports','Stanley TV','Stanley Retr\u00F4'];var html='<p>Altere os endere\u00E7os se os aplicativos forem publicados em outras p\u00E1ginas.</p>';keys.forEach(function(x,i){html+='<label for="url_'+x+'">'+labels[i]+'</label><input id="url_'+x+'" type="url" spellcheck="false">'});showDialog('Configura\u00E7\u00F5es',html,true);keys.forEach(function(x){document.getElementById('url_'+x).value=urls[x]||defaults[x]});return}
+function act(k){if(k==='music'){window.location.href=defaults.music||'stanley-music.html';return}if(k==='sports'||k==='tv'||k==='retro'){launch(k);return}
+if(k==='settings'){var keys=['sports','tv','retro'],labels=['Stanley Sports','Stanley TV','Stanley Retr\u00F4'];var html='<p>STANLEY HUB V3.4</p><button class="action" id="hubUpdate">Verificar atualiza&#231;&#245;es</button><p id="hubUpdateStatus"></p><p>Altere os endere\u00E7os se os aplicativos forem publicados em outras p\u00E1ginas.</p>';keys.forEach(function(x,i){html+='<label for="url_'+x+'">'+labels[i]+'</label><input id="url_'+x+'" type="url" spellcheck="false">'});showDialog('Configura\u00E7\u00F5es',html,true);document.getElementById('hubUpdate').onclick=function(){checkUpdate(true)};keys.forEach(function(x){document.getElementById('url_'+x).value=urls[x]||defaults[x]});return}
 if(k==='apps'){showDialog('Aplicativos','<p>Selecione um dos tr\u00EAs cards superiores para abrir Stanley Sports, Stanley TV ou Stanley Retr\u00F4.</p>',false);return}
 showDialog('Jogos instalados','<p>A execu\u00E7\u00E3o de jogos locais ser\u00E1 adicionada quando criarmos o APK Android. Por enquanto, use o Stanley Retr\u00F4 para os jogos online.</p>',false)}
 cards.forEach(function(c){c.addEventListener('click',function(){act(c.getAttribute('data-app'))});c.addEventListener('mouseenter',function(){cards.forEach(function(x){x.classList.remove('focused')});c.classList.add('focused')});c.addEventListener('focus',function(){cards.forEach(function(x){x.classList.remove('focused')});c.classList.add('focused')})});
@@ -90,6 +94,23 @@ var keys=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];if(keys.indexOf(e.key)
 var current=document.activeElement;if(cards.indexOf(current)<0)return;var main=cards.filter(function(c){return c.classList.contains('hero')});var i=main.indexOf(current);if(e.key==='ArrowDown' && i>=0)return; // Android pode mover foco para a barra nativa
 if(e.key==='ArrowUp' && i>=0){e.preventDefault();focusCard(document.querySelector('.gear'));return}if(i<0){if(e.key==='ArrowDown'){e.preventDefault();focusCard(main[0])}return}e.preventDefault();focusCard(main[(i+(e.key==='ArrowLeft'?main.length-1:1))%main.length]);});
 focusCard(document.querySelector(".hero"));
+
+var HUB_VERSION=34, checking=false;
+function checkUpdate(manual){
+ if(checking)return;checking=true;
+ var status=document.getElementById('hubUpdateStatus');
+ if(manual&&status)status.textContent='Verificando...';
+ fetch('version.json?t='+Date.now(),{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('HTTP');return r.json()}).then(function(v){
+ if(!v.links||typeof v.version!=='number')throw Error('Formato');
+ Object.keys(v.links).forEach(function(k){if(Object.prototype.hasOwnProperty.call(defaults,k)||k==='music'){if(/^https:\/\//i.test(v.links[k])){if(urls[k]===defaults[k])delete urls[k];defaults[k]=v.links[k]}}});
+ try{localStorage.setItem('stanleyHubLinksV2',JSON.stringify(urls))}catch(e){}
+ if(v.version>HUB_VERSION){var u=new URL('index.html',location.href);if(new URL(location.href).searchParams.get('hubv')!==String(v.version)){u.searchParams.set('hubv',v.version);u.searchParams.set('t',Date.now());location.replace(u.href);return}if(status)status.textContent='Publicacao em andamento. Tente novamente.';}
+ else if(manual&&status)status.textContent='Versao atual. Links oficiais sincronizados.';
+ }).catch(function(){if(manual&&status)status.textContent='Nao foi possivel verificar. Tente novamente.';}).then(function(){checking=false});
+}
+checkUpdate(false);window.addEventListener('pageshow',function(){checkUpdate(false)});document.addEventListener('visibilitychange',function(){if(!document.hidden)checkUpdate(false)});window.addEventListener('online',function(){checkUpdate(false)});setInterval(function(){if(!document.hidden)checkUpdate(false)},60000);
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){return r.update()}).catch(function(){});}
+
 })();
 </script>
 </body>
