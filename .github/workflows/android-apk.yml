@@ -49,8 +49,8 @@ jobs:
               applicationId 'br.com.stanleyhub'
               minSdk 23
               targetSdk 32
-              versionCode 2
-              versionName '1.1'
+              versionCode 3
+              versionName '1.2'
             }
             buildTypes {
               release { minifyEnabled false }
@@ -60,6 +60,13 @@ jobs:
               targetCompatibility JavaVersion.VERSION_17
             }
           }
+          EOF
+          mkdir -p app/src/main/res/drawable
+          cat > app/src/main/res/drawable/hub_icon.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+            <path android:fillColor="#123C99" android:pathData="M0,0H48V48H0Z"/>
+            <path android:fillColor="#FFFFFF" android:pathData="M34,10H14L10,14V24L14,28H27V32H10V38H34L38,34V24L34,20H20V16H34Z"/>
+          </vector>
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -71,7 +78,7 @@ jobs:
               <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent>
               <intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent>
             </queries>
-            <application android:label="STANLEY HUB" android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="false" android:hardwareAccelerated="true">
+            <application android:icon="@drawable/hub_icon" android:label="STANLEY HUB" android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="false" android:hardwareAccelerated="true">
               <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="landscape" android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN" />
@@ -127,6 +134,8 @@ jobs:
               private static final String PREFS = "stanley_hub_shortcuts";
               private WebView browser;
               private FrameLayout frame;
+              private LinearLayout root, favorites;
+              private android.widget.HorizontalScrollView strip;
               private View fullScreen;
               private WebChromeClient.CustomViewCallback fullScreenCallback;
 
@@ -157,7 +166,9 @@ jobs:
                           }
                           return true;
                       }
+                      @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){if(strip!=null)strip.setVisibility(url.startsWith(HUB)?View.VISIBLE:View.GONE);}
                       @Override public void onPageFinished(WebView view, String url) {
+                          if(strip!=null) strip.setVisibility(url.startsWith(HUB)?View.VISIBLE:View.GONE);
                           if (url.startsWith(HUB)) {
                               // Corrige preferencias antigas da TV mobile sem apagar outros links.
                               view.evaluateJavascript("try{var k='stanleyHubLinksV2',o=JSON.parse(localStorage.getItem(k)||'{}');if(o.tv==='"+TV_ANTIGA+"'){o.tv='"+TV_HIBRIDA+"';localStorage.setItem(k,JSON.stringify(o));location.reload()}}catch(e){}",null);
@@ -170,28 +181,54 @@ jobs:
                           fullScreen=v;fullScreenCallback=cb;
                           frame.addView(v,new FrameLayout.LayoutParams(-1,-1));
                           browser.setVisibility(View.GONE);
+                          if(strip!=null)strip.setVisibility(View.GONE);
                       }
                       @Override public void onHideCustomView(){closeFullScreen();}
                   });
                   frame.addView(browser,new FrameLayout.LayoutParams(-1,-1));
-                  // Botao nativo sobre a interface: acessivel pelo controle e pelo mouse.
-                  Button myApps = new Button(this);
-                  myApps.setText("MEUS APPS +");
-                  myApps.setTextColor(Color.WHITE);
-                  myApps.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(41,67,155)));
-                  myApps.setFocusable(true);
-                  myApps.setOnClickListener(v -> showMyApps());
-                  FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(dp(148),dp(50),Gravity.BOTTOM|Gravity.RIGHT);
-                  p.setMargins(dp(12),dp(12),dp(18),dp(12));
-                  frame.addView(myApps,p);
-                  setContentView(frame);
+                  root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
+                  root.setBackgroundColor(Color.rgb(5,14,32));
+                  root.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
+                  strip=new android.widget.HorizontalScrollView(this);
+                  strip.setFillViewport(false);strip.setHorizontalScrollBarEnabled(false);
+                  favorites=new LinearLayout(this);favorites.setGravity(Gravity.CENTER_VERTICAL);
+                  favorites.setPadding(dp(12),dp(4),dp(12),dp(4));
+                  strip.addView(favorites,new android.widget.FrameLayout.LayoutParams(-2,-1));
+                  root.addView(strip,new LinearLayout.LayoutParams(-1,dp(94)));
+                  setContentView(root);refreshFavorites();
                   browser.loadUrl(HUB);
                   browser.requestFocus();
               }
+              private void refreshFavorites(){
+                  if(favorites==null)return;
+                  favorites.removeAllViews();
+                  Set<String> chosen=saved();
+                  for(ResolveInfo ri:installedApps())if(chosen.contains(ri.activityInfo.packageName)){
+                      Button tile=tile(ri.loadLabel(getPackageManager()).toString(),ri.loadIcon(getPackageManager()));
+                      tile.setOnClickListener(v->launchApp(ri));
+                      tile.setOnLongClickListener(v->{showAppActions(ri);return true;});
+                  }
+                  tile("+ Adicionar",null).setOnClickListener(v->showPicker());
+                  tile("Gerenciar",null).setOnClickListener(v->showMyApps());
+                  tile("Android",null).setOnClickListener(v->{try{startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));}catch(Exception e){Toast.makeText(this,"Configuracoes indisponiveis",Toast.LENGTH_SHORT).show();}});
+                  tile("Atualizar",null).setOnClickListener(v->browser.loadUrl(HUB));
+              }
+              private Button tile(String name,android.graphics.drawable.Drawable icon){
+                  Button b=new Button(this);b.setText(name);b.setAllCaps(false);b.setTextSize(12);b.setTextColor(Color.WHITE);b.setFocusable(true);b.setMaxLines(2);
+                  android.graphics.drawable.GradientDrawable normal=new android.graphics.drawable.GradientDrawable();normal.setColor(0xff172d50);normal.setCornerRadius(dp(10));
+                  android.graphics.drawable.GradientDrawable focused=new android.graphics.drawable.GradientDrawable();focused.setColor(0xff2455a0);focused.setCornerRadius(dp(10));focused.setStroke(dp(3),0xff77caff);
+                  android.graphics.drawable.StateListDrawable bg=new android.graphics.drawable.StateListDrawable();bg.addState(new int[]{android.R.attr.state_focused},focused);bg.addState(new int[]{},normal);b.setBackground(bg);
+                  if(icon!=null){icon.setBounds(0,0,dp(36),dp(36));b.setCompoundDrawables(null,icon,null,null);}
+                  LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(120),dp(82));lp.setMargins(dp(4),0,dp(4),0);favorites.addView(b,lp);return b;
+              }
+              private void launchApp(ResolveInfo app){
+                  try{Intent i=new Intent(Intent.ACTION_MAIN);i.setClassName(app.activityInfo.packageName,app.activityInfo.name);startActivity(i);}catch(Exception e){Toast.makeText(this,"Nao foi possivel abrir",Toast.LENGTH_SHORT).show();}
+              }
+              @Override protected void onResume(){super.onResume();refreshFavorites();}
               private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
               private SharedPreferences prefs(){return getSharedPreferences(PREFS,Context.MODE_PRIVATE);}
               private Set<String> saved(){return new HashSet<>(prefs().getStringSet("packages",Collections.emptySet()));}
-              private void save(Set<String> packages){prefs().edit().putStringSet("packages",new HashSet<>(packages)).apply();}
+              private void save(Set<String> packages){prefs().edit().putStringSet("packages",new HashSet<>(packages)).apply();refreshFavorites();}
               private List<ResolveInfo> installedApps(){
                   PackageManager pm=getPackageManager();
                   Intent q=new Intent(Intent.ACTION_MAIN);q.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -248,13 +285,14 @@ jobs:
                   if(fullScreen==null)return;
                   frame.removeView(fullScreen);fullScreen=null;
                   browser.setVisibility(View.VISIBLE);
+                  if(strip!=null)strip.setVisibility(browser.getUrl()!=null && browser.getUrl().startsWith(HUB)?View.VISIBLE:View.GONE);
                   if(fullScreenCallback!=null)fullScreenCallback.onCustomViewHidden();
                   fullScreenCallback=null;
               }
               @Override public void onBackPressed(){
                   if(fullScreen!=null){closeFullScreen();return;}
                   if(browser!=null && browser.getUrl()!=null && !browser.getUrl().startsWith(HUB)){browser.loadUrl(HUB);return;}
-                  super.onBackPressed();
+                  browser.loadUrl(HUB);
               }
               @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);if(browser!=null)browser.loadUrl(HUB);}
               @Override protected void onDestroy(){if(browser!=null){frame.removeView(browser);browser.destroy();browser=null;}super.onDestroy();}
@@ -265,6 +303,6 @@ jobs:
       - name: Disponibilizar APK para baixar
         uses: actions/upload-artifact@v4
         with:
-          name: STANLEY-HUB-APK-MEUS-APPS
+          name: STANLEY-HUB-V3-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
