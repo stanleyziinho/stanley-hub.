@@ -1,0 +1,11 @@
+{
+  "id": "./",
+  "name": "STANLEY HUB",
+  "short_name": "Stanley HUB",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080f26",
+  "theme_color": "#080f26",
+  "lang": "pt-BR"
+}
